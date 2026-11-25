@@ -55,17 +55,40 @@ class TeslaVehicleDrive extends IPSModuleStrict
 
     public function ReceiveData($JSONString): string
     {
-        $response = json_decode($JSONString);
+        $driveState = json_decode($JSONString)->response->drive_state ?? null;
+        if (!is_object($driveState)) {
+            return '';
+        }
 
-        if ($response->response != null) {
-            foreach ($response->response->drive_state as $key => $Value) {
-                if (@$this->GetIDForIdent($key) != false) {
-                    $this->SetValue($key, $Value);
-                } else {
-                    $this->SendDebug('Variable not exist', 'Key: ' . $key . ' - Value: ' . $Value, 0);
-                }
+        foreach ($driveState as $key => $value) {
+            if (in_array($key, ['latitude', 'longitude', 'gps_as_of'], true)) {
+                continue;
+            }
+            if (@$this->GetIDForIdent($key) != false) {
+                $this->SetValue($key, $value);
+            } else {
+                $this->SendDebug('Variable not exist', 'Key: ' . $key, 0);
             }
         }
+        $this->updateGPSPosition($driveState);
         return '';
+    }
+
+    private function updateGPSPosition(stdClass $driveState): void
+    {
+        $latitude = $driveState->latitude ?? null;
+        $longitude = $driveState->longitude ?? null;
+        $gpsAsOf = $driveState->gps_as_of ?? null;
+        $timestamp = is_int($gpsAsOf) || is_string($gpsAsOf) ? filter_var($gpsAsOf, FILTER_VALIDATE_INT) : false;
+        if (!is_numeric($latitude) || abs((float) $latitude) > 90 || !is_numeric($longitude) || abs((float) $longitude) > 180
+            || $timestamp === false || $timestamp <= max(0, (int) $this->GetValue('gps_as_of'))) {
+            return;
+        }
+
+        // An empty time marks the write in progress. Publish the time once both coordinates are available.
+        if ($this->SetValue('gps_as_of', '') && $this->SetValue('latitude', (string) $latitude)
+            && $this->SetValue('longitude', (string) $longitude)) {
+            $this->SetValue('gps_as_of', (string) $timestamp);
+        }
     }
 }

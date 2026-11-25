@@ -18,6 +18,11 @@
             "type": "IntervalBox",
             "name": "Interval",
             "caption": "seconds"
+        },
+        {
+            "type": "CheckBox",
+            "name": "IncludeLocationData",
+            "caption": "Include vehicle location"
         }
     ],
     "actions": [

@@ -11,6 +11,7 @@ class TeslaVehicleConnector extends IPSModuleStrict
         $this->RegisterPropertyBoolean('Active', false);
         $this->RegisterPropertyString('VIN', '');
         $this->RegisterPropertyInteger('Interval', 700);
+        $this->RegisterPropertyBoolean('IncludeLocationData', false);
         $this->ConnectParent('{D5994951-CD92-78B7-A059-3D423FCB599A}');
 
         $this->RegisterTimer('Tesla_UpdateData', 0, 'Tesla_FetchData($_IPS[\'TARGET\']);');
@@ -37,13 +38,23 @@ class TeslaVehicleConnector extends IPSModuleStrict
 
     public function FetchData(): void
     {
+        $endpoint = '/api/1/vehicles/' . $this->ReadPropertyString('VIN') . '/vehicle_data';
+        if ($this->ReadPropertyBoolean('IncludeLocationData')) {
+            $endpoint .= '?' . http_build_query([
+                'endpoints' => 'charge_state;climate_state;drive_state;gui_settings;vehicle_config;vehicle_state;location_data'
+            ], '', '&', PHP_QUERY_RFC3986);
+        }
         $response = json_decode($this->SendDataToParent(json_encode([
             'DataID'   => '{83D77BA9-04CB-17F2-A0F9-43293FE8448C}',
-            'Endpoint' => '/api/1/vehicles/' . $this->ReadPropertyString('VIN') . '/vehicle_data',
+            'Endpoint' => $endpoint,
             'Payload'  => ''
         ])));
 
-        $this->SendDebug('Response', json_encode($response), 0);
+        if (!is_object($response->response ?? null)) {
+            $this->SendDebug('Response', 'No vehicle data received', 0);
+            return;
+        }
+        $this->SendDebug('Response blocks', implode(', ', array_keys(get_object_vars($response->response))), 0);
         $response->DataID = '{9825E0F7-B5DF-6ED8-4F73-5C7366FBB11F}';
         $this->SendDataToChildren(json_encode($response));
     }

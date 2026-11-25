@@ -3,7 +3,8 @@
         "de": {
             "Active": "Aktiv",
             "seconds": "Sekunden",
-            "Update Interval": "Updateintervall"
+            "Update Interval": "Updateintervall",
+            "Include vehicle location": "Fahrzeugstandort abrufen"
         }
     }
 }
